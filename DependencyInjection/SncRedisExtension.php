@@ -46,9 +46,13 @@ class SncRedisExtension extends Extension
             $container->setParameter(sprintf('snc_redis.%s.class', $name), $class);
         }
 
+        $clients = array();
+
         foreach ($config['clients'] as $client) {
-            $this->loadClient($client, $container);
+            $clients[] = $this->loadClient($client, $container);
         }
+
+        $container->setParameter('snc_redis.clients', $clients);
 
         if (isset($config['session'])) {
             $this->loadSession($config, $container, $loader);
@@ -91,16 +95,16 @@ class SncRedisExtension extends Extension
      *
      * @param array            $client    A client configuration
      * @param ContainerBuilder $container A ContainerBuilder instance
+     *
+     * @return string                     Client id
      */
     protected function loadClient(array $client, ContainerBuilder $container)
     {
         switch ($client['type']) {
             case 'predis':
-                $this->loadPredisClient($client, $container);
-                break;
+                return $this->loadPredisClient($client, $container);
             case 'phpredis':
-                $this->loadPhpredisClient($client, $container);
-                break;
+                return $this->loadPhpredisClient($client, $container);
         }
     }
 
@@ -109,6 +113,8 @@ class SncRedisExtension extends Extension
      *
      * @param array            $client    A client configuration
      * @param ContainerBuilder $container A ContainerBuilder instance
+     *
+     * @return string                     Client id
      */
     protected function loadPredisClient(array $client, ContainerBuilder $container)
     {
@@ -186,8 +192,11 @@ class SncRedisExtension extends Extension
             $clientDef->addArgument($connections);
         }
         $clientDef->addArgument(new Reference($optionId));
-        $container->setDefinition(sprintf('snc_redis.%s', $client['alias']), $clientDef);
+        $clientId = sprintf('snc_redis.%s', $client['alias']);
+        $container->setDefinition($clientId, $clientDef);
         $container->setAlias(sprintf('snc_redis.%s_client', $client['alias']), sprintf('snc_redis.%s', $client['alias']));
+
+        return $clientId;
     }
 
     /**
@@ -213,6 +222,8 @@ class SncRedisExtension extends Extension
      *
      * @param array            $client    A client configuration
      * @param ContainerBuilder $container A ContainerBuilder instance
+     *
+     * @return string                     Client id
      *
      * @throws \RuntimeException
      */
@@ -274,6 +285,8 @@ class SncRedisExtension extends Extension
         }
 
         $container->setAlias(sprintf('snc_redis.%s_client', $client['alias']), sprintf('snc_redis.%s', $client['alias']));
+
+        return $phpredisId;
     }
 
     /**
